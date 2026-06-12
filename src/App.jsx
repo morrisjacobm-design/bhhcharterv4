@@ -3,9 +3,9 @@ import { useState, useEffect, useMemo } from "react";
 /* ═══════════════════════ Default data ═══════════════════════ */
 
 const DEFAULT_AIRCRAFT = [
-  { id: "r44", name: "Robinson R44", speed: 100, rate: 850 },
-  { id: "b206", name: "Bell 206B JetRanger", speed: 110, rate: 1500 },
-  { id: "b206l", name: "Bell 206L LongRanger", speed: 130, rate: 2500 },
+  { id: "r44", name: "Robinson R44", speed: 100, rate: 850, maxPax: 3 },
+  { id: "b206", name: "Bell 206B JetRanger", speed: 110, rate: 1500, maxPax: 4 },
+  { id: "b206l", name: "Bell 206L LongRanger", speed: 130, rate: 2500, maxPax: 6 },
 ];
 
 const DEFAULT_FEES = {
@@ -13,11 +13,16 @@ const DEFAULT_FEES = {
   opsFeeShortNotice: 500,
   groundWaitRate: 300,
   legBufferMin: 6,
+  taxRate: 7.5, // % applied to the booking subtotal
+  paxFee: 5.2, // $ per passenger
 };
+
+const LOGO_URL = "https://bluehillhelicopters.com/wp-content/uploads/2025/09/heli-logo-white-shadow-xl-300x73.png";
 
 const DEFAULT_COMPANY = {
   name: "Blue Hill Helicopters",
   tagline: "Boston's Aviation Company",
+  logoUrl: LOGO_URL,
   phone: "781-688-0263",
   email: "info@bluehillhelicopters.com",
   address: "125 Access Road, Norwood, MA 02062",
@@ -52,6 +57,7 @@ const RAW_LOCATIONS = [
   ["KEWB", "New Bedford Regional", 41.6761, -70.9569, 0, "MA"],
   ["5B6", "Falmouth Airpark", 41.5859, -70.5406, 0, "MA"],
   ["KHYA", "Cape Cod Gateway (Hyannis)", 41.6693, -70.2803, 40, "MA"],
+  ["2B1", "Cape Cod Airfield (Marstons Mills)", 41.68, -70.4019, 0, "MA"],
   ["KCQX", "Chatham Municipal", 41.6884, -69.9898, 0, "MA"],
   ["KPVC", "Provincetown Municipal", 42.0719, -70.2214, 25, "MA"],
   ["KACK", "Nantucket Memorial", 41.2531, -70.0602, 60, "MA"],
@@ -81,6 +87,7 @@ const RAW_LOCATIONS = [
   ["7B9", "Ellington Airport", 41.9133, -72.4574, 0, "CT"],
   ["7B6", "Skylark Airpark (Warehouse Point)", 41.9293, -72.5444, 0, "CT"],
   ["42B", "Goodspeed Airport (East Haddam)", 41.4509, -72.4577, 0, "CT"],
+  ["11N", "Candlelight Farms (New Milford)", 41.5949, -73.4837, 0, "CT"],
   // ── Rhode Island ──
   ["KPVD", "Rhode Island T.F. Green Intl", 41.724, -71.4283, 100, "RI"],
   ["KSFZ", "North Central State (Pawtucket)", 41.9208, -71.4914, 0, "RI"],
@@ -107,6 +114,8 @@ const RAW_LOCATIONS = [
   ["KHIE", "Mount Washington Regional (Whitefield)", 44.3676, -71.5444, 0, "NH"],
   ["KBML", "Berlin Regional", 44.5754, -71.1759, 0, "NH"],
   ["ERR", "Errol Airport", 44.7925, -71.1642, 0, "NH"],
+  ["1B5", "Franconia Airport", 44.2034, -71.7517, 0, "NH"],
+  ["5B9", "Dean Memorial (North Haverhill)", 44.0911, -72.0046, 0, "NH"],
   // ── Vermont ──
   ["KBTV", "Burlington Intl", 44.472, -73.1533, 100, "VT"],
   ["KMPV", "Edward F. Knapp State (Barre-Montpelier)", 44.2035, -72.5623, 0, "VT"],
@@ -120,6 +129,7 @@ const RAW_LOCATIONS = [
   ["KFSO", "Franklin County State (Highgate)", 44.9401, -73.0975, 0, "VT"],
   ["0B7", "Warren-Sugarbush Airport", 44.1175, -72.8266, 0, "VT"],
   ["2B9", "Post Mills Airport", 43.8845, -72.2533, 0, "VT"],
+  ["B06", "Basin Harbor (Vergennes)", 44.1936, -73.3439, 0, "VT"],
   // ── Maine ──
   ["KPWM", "Portland Intl Jetport", 43.6462, -70.3093, 100, "ME"],
   ["KBGR", "Bangor Intl", 44.8074, -68.8281, 100, "ME"],
@@ -144,10 +154,19 @@ const RAW_LOCATIONS = [
   ["KPQI", "Presque Isle Intl", 46.6889, -68.0448, 50, "ME"],
   ["KCAR", "Caribou Municipal", 46.8715, -68.0179, 0, "ME"],
   ["KEPM", "Eastport Municipal", 44.9101, -67.0127, 0, "ME"],
+  ["OWK", "Central Maine (Norridgewock)", 44.7155, -69.8665, 0, "ME"],
+  ["0B1", "Bethel Regional", 44.4253, -70.8086, 0, "ME"],
+  ["81B", "Oxford County Regional", 44.1574, -70.4811, 0, "ME"],
+  ["1B0", "Dexter Regional", 45.004, -69.238, 0, "ME"],
+  ["LRG", "Lincoln Regional", 45.3623, -68.5345, 0, "ME"],
+  ["KPNN", "Princeton Municipal", 45.2006, -67.5644, 0, "ME"],
+  ["65B", "Lubec Municipal", 44.8951, -67.0306, 0, "ME"],
+  ["57B", "Islesboro Airport", 44.3025, -68.9105, 0, "ME"],
   // ── NY / NJ corridor ──
   ["KALB", "Albany Intl", 42.7483, -73.8017, 100, "NY/NJ"],
   ["KPOU", "Hudson Valley Regional (Poughkeepsie)", 41.6266, -73.8842, 50, "NY/NJ"],
   ["KSWF", "New York Stewart Intl", 41.5041, -74.1048, 100, "NY/NJ"],
+  ["KMGJ", "Orange County (Montgomery)", 41.5099, -74.2646, 0, "NY/NJ"],
   ["KHPN", "Westchester County (White Plains)", 41.067, -73.7076, 150, "NY/NJ"],
   ["KHTO", "East Hampton Town", 40.9596, -72.2518, 200, "NY/NJ"],
   ["KFOK", "Francis S. Gabreski (Westhampton)", 40.8437, -72.6318, 75, "NY/NJ"],
@@ -277,6 +296,8 @@ export default function HeliCharterQuoter() {
   const [roundTrip, setRoundTrip] = useState(true);
   const [waitHours, setWaitHours] = useState(3);
   const [shortNotice, setShortNotice] = useState(false);
+  const [waiveOps, setWaiveOps] = useState(false);
+  const [passengers, setPassengers] = useState([{ id: 1, weight: "", bag: "" }]);
   const [strategy, setStrategy] = useState("auto");
   const [quoteNo] = useState(
     () => `BH-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100 + Math.random() * 900)}`
@@ -289,7 +310,7 @@ export default function HeliCharterQuoter() {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const c = JSON.parse(raw);
-          if (c.aircraft) setAircraft(c.aircraft);
+          if (c.aircraft) setAircraft(c.aircraft.map((a) => ({ maxPax: 4, ...a, ...(a.id === "b206l" && (!a.maxPax || a.maxPax === 4) ? { maxPax: 6 } : {}) })));
           if (c.fees) setFees({ ...DEFAULT_FEES, ...c.fees });
           if (c.company) setCompany({ ...DEFAULT_COMPANY, ...c.company });
           if (c.locations) {
@@ -340,7 +361,7 @@ export default function HeliCharterQuoter() {
     }
 
     const coreLandingFees = legs.reduce((s, l) => s + (Number(l.to.fee) || 0), 0);
-    const opsFee = shortNotice ? Number(fees.opsFeeShortNotice) : Number(fees.opsFee);
+    const opsFee = waiveOps ? 0 : shortNotice ? Number(fees.opsFeeShortNotice) : Number(fees.opsFee);
 
     const wh = Math.max(0, Number(waitHours) || 0);
     const ferryLeg = leg(dest, base, "f");
@@ -367,10 +388,15 @@ export default function HeliCharterQuoter() {
     const flightTime = allLegs.reduce((s, l) => s + l.time, 0);
     const flightCost = allLegs.reduce((s, l) => s + l.cost, 0);
     const landingFees = coreLandingFees + extraLandingFees;
-    const total = flightCost + landingFees + opsFee + waitCharge;
+    const subtotal = flightCost + landingFees + opsFee + waitCharge;
+    const nPax = passengers.length;
+    const totalPaxWeight = passengers.reduce((s, p2) => s + (Number(p2.weight) || 0), 0);
+    const totalBagWeight = passengers.reduce((s, p2) => s + (Number(p2.bag) || 0), 0);
+    const taxTotal = subtotal * ((Number(fees.taxRate) || 0) / 100) + nPax * (Number(fees.paxFee) || 0);
+    const total = subtotal + taxTotal;
 
-    return { legs, extraLegs, allLegs, flightTime, flightCost, landingFees, opsFee, waitCharge, total, analysis, chosen };
-  }, [base, pickup, dest, ac, roundTrip, waitHours, shortNotice, fees, strategy]);
+    return { legs, extraLegs, allLegs, flightTime, flightCost, landingFees, opsFee, waitCharge, subtotal, nPax, totalPaxWeight, totalBagWeight, taxTotal, total, analysis, chosen };
+  }, [base, pickup, dest, ac, roundTrip, waitHours, shortNotice, waiveOps, passengers, fees, strategy]);
 
   const missing = [
     !base && baseIcao && baseIcao.toUpperCase(),
@@ -378,7 +404,9 @@ export default function HeliCharterQuoter() {
     !dest && destIcao && destIcao.toUpperCase(),
   ].filter(Boolean);
 
-  const printProps = { quote, company, ac, clientName, tripDate, quoteNo, roundTrip, waitHours, shortNotice, fees, pickup, dest };
+  const seatOverflow = quote && ac && quote.nPax > Number(ac.maxPax || 99);
+
+  const printProps = { quote, company, ac, clientName, tripDate, quoteNo, roundTrip, waitHours, shortNotice, waiveOps, fees, passengers };
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, fontFamily: T.body, color: T.ink }}>
@@ -398,14 +426,11 @@ export default function HeliCharterQuoter() {
 
       <div id="app-root">
         {/* ── Header ── */}
-        <header style={{ background: T.navy, color: "#fff", padding: "18px 26px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", borderBottom: `4px solid ${T.steel}` }}>
-          <Rotor size={40} />
+        <header style={{ background: T.navy, color: "#fff", padding: "18px 26px", display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", borderBottom: `4px solid ${T.steel}` }}>
+          <BrandLogo company={company} height={52} />
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontFamily: T.disp, fontSize: 21, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-              {company.name}
-            </div>
-            <div style={{ fontFamily: T.disp, fontSize: 11, fontWeight: 500, letterSpacing: "0.22em", textTransform: "uppercase", color: "#9FBEDD" }}>
-              {company.tagline} · Charter Quoting
+            <div style={{ fontFamily: T.disp, fontSize: 14, fontWeight: 700, letterSpacing: "0.24em", textTransform: "uppercase", color: "#9FBEDD" }}>
+              Charter Quoting Tool
             </div>
           </div>
           <nav style={{ display: "flex", gap: 8 }}>
@@ -430,8 +455,10 @@ export default function HeliCharterQuoter() {
                 clientName, setClientName, tripDate, setTripDate,
                 baseIcao, setBaseIcao, pickupIcao, setPickupIcao, destIcao, setDestIcao,
                 aircraft, acId, setAcId, roundTrip, setRoundTrip, waitHours, setWaitHours,
-                shortNotice, setShortNotice, strategy, setStrategy,
-                quote, missing, ac, fees, locations, quoteNo,
+                shortNotice, setShortNotice, waiveOps, setWaiveOps,
+                passengers, setPassengers,
+                strategy, setStrategy,
+                quote, missing, seatOverflow, ac, fees, locations, quoteNo,
                 onExport: () => setShowPrint(true),
               }}
             />
@@ -483,6 +510,29 @@ function Rotor({ size }) {
   );
 }
 
+/* Company logo with graceful fallback to rotor + wordmark if the image can't load */
+function BrandLogo({ company, height }) {
+  const [failed, setFailed] = useState(false);
+  if (!company.logoUrl || failed) {
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+        <Rotor size={height * 0.8} />
+        <span style={{ fontFamily: T.disp, fontSize: height * 0.38, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: "#fff" }}>
+          {company.name}
+        </span>
+      </span>
+    );
+  }
+  return (
+    <img
+      src={company.logoUrl}
+      alt={company.name}
+      style={{ height, width: "auto", display: "block" }}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 /* ═══════════════════════ Quote tab ═══════════════════════ */
 
 function QuoteTab(p) {
@@ -490,9 +540,15 @@ function QuoteTab(p) {
     clientName, setClientName, tripDate, setTripDate,
     baseIcao, setBaseIcao, pickupIcao, setPickupIcao, destIcao, setDestIcao,
     aircraft, acId, setAcId, roundTrip, setRoundTrip, waitHours, setWaitHours,
-    shortNotice, setShortNotice, strategy, setStrategy,
-    quote, missing, ac, fees, locations, quoteNo, onExport,
+    shortNotice, setShortNotice, waiveOps, setWaiveOps,
+    passengers, setPassengers,
+    strategy, setStrategy,
+    quote, missing, seatOverflow, ac, fees, locations, quoteNo, onExport,
   } = p;
+
+  const addPassenger = () => setPassengers([...passengers, { id: Date.now(), weight: "", bag: "" }]);
+  const removePassenger = (id) => setPassengers(passengers.filter((x) => x.id !== id));
+  const updatePassenger = (id, field, val) => setPassengers(passengers.map((x) => (x.id === id ? { ...x, [field]: val } : x)));
 
   const icaoField = (label, val, set) => (
     <div>
@@ -509,7 +565,8 @@ function QuoteTab(p) {
       </datalist>
 
       {/* Inputs */}
-      <section style={{ ...cardStyle, alignSelf: "start" }}>
+      <div style={{ display: "grid", gap: 20, alignSelf: "start" }}>
+      <section style={cardStyle}>
         <h2 style={h2Style}>Trip Details</h2>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -546,7 +603,15 @@ function QuoteTab(p) {
         <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
             <label style={labelStyle}>Trip type</label>
-            <select value={roundTrip ? "rt" : "ow"} onChange={(e) => setRoundTrip(e.target.value === "rt")} style={inputStyle}>
+            <select
+              value={roundTrip ? "rt" : "ow"}
+              onChange={(e) => {
+                const rt = e.target.value === "rt";
+                setRoundTrip(rt);
+                if (!rt) setWaitHours(0);
+              }}
+              style={inputStyle}
+            >
               <option value="rt">Round trip</option>
               <option value="ow">One way</option>
             </select>
@@ -561,6 +626,10 @@ function QuoteTab(p) {
           <input type="checkbox" checked={shortNotice} onChange={(e) => setShortNotice(e.target.checked)} />
           Short-notice booking ({usd(fees.opsFeeShortNotice)} ops fee)
         </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 14.5 }}>
+          <input type="checkbox" checked={waiveOps} onChange={(e) => setWaiveOps(e.target.checked)} />
+          Waive operations fee
+        </label>
 
         {roundTrip && Number(waitHours) > 0 && (
           <div style={{ marginTop: 16 }}>
@@ -573,16 +642,65 @@ function QuoteTab(p) {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Passengers */}
+      <section style={cardStyle}>
+        <h2 style={h2Style}>Passengers</h2>
+        <div style={{ display: "grid", gap: 8 }}>
+          {passengers.map((pp, i) => (
+            <div key={pp.id} style={{ display: "grid", gridTemplateColumns: "92px 1fr 1fr 30px", gap: 8, alignItems: "center" }}>
+              <div style={{ fontFamily: T.disp, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: T.navy }}>
+                Pax {i + 1}
+              </div>
+              <input type="number" min="0" value={pp.weight}
+                onChange={(e) => updatePassenger(pp.id, "weight", e.target.value)}
+                style={inputStyle} placeholder="Weight (lbs)" />
+              <input type="number" min="0" value={pp.bag}
+                onChange={(e) => updatePassenger(pp.id, "bag", e.target.value)}
+                style={inputStyle} placeholder="Baggage (lbs)" />
+              <button onClick={() => removePassenger(pp.id)} disabled={passengers.length <= 1}
+                title="Remove passenger"
+                style={{ border: "none", background: "none", color: passengers.length <= 1 ? T.line : "#B3263A", fontSize: 16, padding: 0 }}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <button onClick={addPassenger}
+          style={{
+            marginTop: 12, fontFamily: T.disp, fontWeight: 700, fontSize: 11.5, letterSpacing: "0.12em", textTransform: "uppercase",
+            padding: "8px 16px", borderRadius: 4, border: `1px solid ${T.steel}`, background: "transparent", color: T.steel,
+          }}>
+          + Add passenger
+        </button>
+
+        {quote && (
+          <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 4, background: T.sky, fontFamily: T.mono, fontSize: 12.5, color: T.navy, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+            <span>{quote.nPax} pax</span>
+            <span>{quote.totalPaxWeight.toLocaleString()} lbs pax</span>
+            <span>{quote.totalBagWeight.toLocaleString()} lbs baggage</span>
+            <span style={{ fontWeight: 600 }}>{(quote.totalPaxWeight + quote.totalBagWeight).toLocaleString()} lbs total</span>
+          </div>
+        )}
+
+        {seatOverflow && (
+          <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 4, background: "#FBEDEF", border: "1px solid #E3B6BD", color: "#8E1F30", fontSize: 13.5, fontWeight: 600 }}>
+            {quote.nPax} passengers exceeds the {ac.name}'s {ac.maxPax}-seat maximum. Reduce passengers or select a larger aircraft.
+          </div>
+        )}
 
         <button onClick={onExport} disabled={!quote}
           style={{
-            marginTop: 20, width: "100%", padding: "13px 0", borderRadius: 4, border: "none",
+            marginTop: 16, width: "100%", padding: "13px 0", borderRadius: 4, border: "none",
             background: quote ? T.navy : "#A9B6C6", color: "#fff",
             fontFamily: T.disp, fontWeight: 700, fontSize: 13, letterSpacing: "0.16em", textTransform: "uppercase",
           }}>
           Export client PDF
         </button>
       </section>
+      </div>
 
       {/* Results */}
       <section style={{ display: "grid", gap: 20, alignSelf: "start" }}>
@@ -659,7 +777,9 @@ function QuoteTab(p) {
                     <Row label={`Ground wait — ${Number(waitHours)} hr @ ${usd(fees.groundWaitRate)}/hr`} value={usd2(quote.waitCharge)} />
                   )}
                   <Row label="Landing & facility fees" value={usd2(quote.landingFees)} />
-                  <Row label={`Operations fee${shortNotice ? " (short notice)" : ""}`} value={usd2(quote.opsFee)} />
+                  <Row label={`Operations fee${waiveOps ? " (waived)" : shortNotice ? " (short notice)" : ""}`} value={usd2(quote.opsFee)} />
+                  <Row label="Subtotal" value={usd2(quote.subtotal)} />
+                  <Row label="Tax" value={usd2(quote.taxTotal)} />
                   <tr>
                     <td style={{ padding: "14px 0 0", fontFamily: T.disp, fontWeight: 800, fontSize: 16, textTransform: "uppercase", letterSpacing: "0.12em", color: T.navy }}>Total</td>
                     <td style={{ padding: "14px 0 0", textAlign: "right", fontFamily: T.mono, fontSize: 26, fontWeight: 600, color: T.navy }}>{usd2(quote.total)}</td>
@@ -685,7 +805,7 @@ function Row({ label, value }) {
 
 /* ═══════════════════════ Client-ready quote sheet (print / PDF) ═══════════════════════ */
 
-function QuoteSheet({ quote, company, ac, clientName, tripDate, quoteNo, roundTrip, waitHours, shortNotice, fees }) {
+function QuoteSheet({ quote, company, ac, clientName, tripDate, quoteNo, roundTrip, waitHours, shortNotice, waiveOps, fees, passengers }) {
   if (!quote) return null;
   const dateFmt = tripDate
     ? new Date(tripDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
@@ -694,10 +814,9 @@ function QuoteSheet({ quote, company, ac, clientName, tripDate, quoteNo, roundTr
     <div style={{ fontFamily: T.body, color: T.ink, background: "#fff" }}>
       {/* Letterhead */}
       <div style={{ background: T.navy, color: "#fff", padding: "26px 36px", display: "flex", alignItems: "center", gap: 18 }}>
-        <Rotor size={46} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: T.disp, fontSize: 23, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase" }}>{company.name}</div>
-          <div style={{ fontFamily: T.disp, fontSize: 11, fontWeight: 500, letterSpacing: "0.26em", textTransform: "uppercase", color: "#9FBEDD" }}>{company.tagline}</div>
+          <BrandLogo company={company} height={56} />
+          <div style={{ fontFamily: T.disp, fontSize: 10.5, fontWeight: 500, letterSpacing: "0.26em", textTransform: "uppercase", color: "#9FBEDD", marginTop: 8 }}>{company.tagline}</div>
         </div>
         <div style={{ textAlign: "right", fontSize: 11.5, lineHeight: 1.7, color: "#C9D8EA" }}>
           {company.address}<br />{company.phone} · {company.email}<br />{company.base}
@@ -726,8 +845,11 @@ function QuoteSheet({ quote, company, ac, clientName, tripDate, quoteNo, roundTr
             ["Prepared for", clientName || "—"],
             ["Trip date", dateFmt],
             ["Aircraft", `${ac.name} · ${ac.speed} kts cruise`],
+            ["Passengers", `${quote.nPax}${ac.maxPax ? ` of ${ac.maxPax} seats` : ""}`],
+            ["Passenger weight", quote.totalPaxWeight ? `${quote.totalPaxWeight.toLocaleString()} lbs` : "—"],
+            ["Baggage", quote.totalBagWeight ? `${quote.totalBagWeight.toLocaleString()} lbs` : "—"],
           ].map(([k, v], i) => (
-            <div key={k} style={{ padding: "12px 16px", borderLeft: i ? `1px solid ${T.line}` : "none", background: i % 2 ? "#F7FAFD" : "#fff" }}>
+            <div key={k} style={{ padding: "12px 16px", borderLeft: i % 3 ? `1px solid ${T.line}` : "none", borderTop: i > 2 ? `1px solid ${T.line}` : "none", background: i % 2 ? "#F7FAFD" : "#fff" }}>
               <div style={{ fontFamily: T.disp, fontSize: 10, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: T.slate }}>{k}</div>
               <div style={{ fontSize: 14.5, fontWeight: 600, marginTop: 3 }}>{v}</div>
             </div>
@@ -764,6 +886,36 @@ function QuoteSheet({ quote, company, ac, clientName, tripDate, quoteNo, roundTr
           </div>
         )}
 
+        {/* Load manifest (only if weights were entered) */}
+        {passengers && passengers.some((pp) => Number(pp.weight) || Number(pp.bag)) && (
+          <>
+            <SheetH>Load Manifest</SheetH>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: T.navy, color: "#fff", fontFamily: T.disp, fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                  <th style={{ textAlign: "left", padding: "7px 12px" }}>Passenger</th>
+                  <th style={{ textAlign: "right", padding: "7px 12px" }}>Weight</th>
+                  <th style={{ textAlign: "right", padding: "7px 12px" }}>Baggage</th>
+                </tr>
+              </thead>
+              <tbody>
+                {passengers.map((pp, i) => (
+                  <tr key={pp.id} style={{ borderBottom: `1px solid ${T.line}`, background: i % 2 ? "#F7FAFD" : "#fff" }}>
+                    <td style={{ padding: "7px 12px" }}>Passenger {i + 1}</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right", fontFamily: T.mono }}>{Number(pp.weight) ? `${Number(pp.weight).toLocaleString()} lbs` : "—"}</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right", fontFamily: T.mono }}>{Number(pp.bag) ? `${Number(pp.bag).toLocaleString()} lbs` : "—"}</td>
+                  </tr>
+                ))}
+                <tr style={{ background: "#EDF3F9" }}>
+                  <td style={{ padding: "7px 12px", fontWeight: 600 }}>Total</td>
+                  <td style={{ padding: "7px 12px", textAlign: "right", fontFamily: T.mono, fontWeight: 600 }}>{quote.totalPaxWeight.toLocaleString()} lbs</td>
+                  <td style={{ padding: "7px 12px", textAlign: "right", fontFamily: T.mono, fontWeight: 600 }}>{quote.totalBagWeight.toLocaleString()} lbs</td>
+                </tr>
+              </tbody>
+            </table>
+          </>
+        )}
+
         {/* Pricing */}
         <SheetH>Pricing</SheetH>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
@@ -773,7 +925,9 @@ function QuoteSheet({ quote, company, ac, clientName, tripDate, quoteNo, roundTr
               <SheetRow label={`Ground wait — ${Number(waitHours)} hr @ ${usd(fees.groundWaitRate)} per hour`} value={usd2(quote.waitCharge)} />
             )}
             <SheetRow label="Landing & facility fees" value={usd2(quote.landingFees)} />
-            <SheetRow label={`Operations fee${shortNotice ? " (short notice)" : ""}`} value={usd2(quote.opsFee)} />
+            <SheetRow label={`Operations fee${waiveOps ? " (waived)" : shortNotice ? " (short notice)" : ""}`} value={usd2(quote.opsFee)} />
+            <SheetRow label="Subtotal" value={usd2(quote.subtotal)} />
+            <SheetRow label="Tax" value={usd2(quote.taxTotal)} />
           </tbody>
         </table>
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
@@ -865,7 +1019,7 @@ function AdminTab({ aircraft, setAircraft, fees, setFees, locations, setLocation
       <section style={cardStyle}>
         <h2 style={h2Style}>Company & Quote Letterhead</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-          {[["name", "Company name"], ["tagline", "Tagline"], ["phone", "Phone"], ["email", "Email"], ["address", "Address"], ["base", "Home base"]].map(([k, lbl]) => (
+          {[["name", "Company name"], ["tagline", "Tagline"], ["logoUrl", "Logo image URL"], ["phone", "Phone"], ["email", "Email"], ["address", "Address"], ["base", "Home base"]].map(([k, lbl]) => (
             <div key={k}>
               <label style={labelStyle}>{lbl}</label>
               <input value={company[k]} onChange={(e) => setCompany({ ...company, [k]: e.target.value })} style={{ ...inputStyle, fontFamily: T.body }} />
@@ -883,7 +1037,7 @@ function AdminTab({ aircraft, setAircraft, fees, setFees, locations, setLocation
       <section style={cardStyle}>
         <h2 style={h2Style}>Standard Fees</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12 }}>
-          {[["opsFee", "Operations fee ($)"], ["opsFeeShortNotice", "Ops fee — short notice ($)"], ["groundWaitRate", "Ground wait ($/hr)"], ["legBufferMin", "Per-leg buffer (min)"]].map(([k, lbl]) => (
+          {[["opsFee", "Operations fee ($)"], ["opsFeeShortNotice", "Ops fee — short notice ($)"], ["groundWaitRate", "Ground wait ($/hr)"], ["legBufferMin", "Per-leg buffer (min)"], ["taxRate", "Tax rate (%)"], ["paxFee", "Per-passenger fee ($)"]].map(([k, lbl]) => (
             <div key={k}>
               <label style={labelStyle}>{lbl}</label>
               <input type="number" value={fees[k]} onChange={(e) => setFees({ ...fees, [k]: parseFloat(e.target.value) || 0 })} style={inputStyle} />
@@ -901,6 +1055,7 @@ function AdminTab({ aircraft, setAircraft, fees, setFees, locations, setLocation
               <th style={{ textAlign: "left", padding: 6 }}>Aircraft</th>
               <th style={{ textAlign: "left", padding: 6 }}>Cruise (kts)</th>
               <th style={{ textAlign: "left", padding: 6 }}>Rate ($/hr)</th>
+              <th style={{ textAlign: "left", padding: 6 }}>Max pax</th>
               <th />
             </tr>
           </thead>
@@ -908,8 +1063,9 @@ function AdminTab({ aircraft, setAircraft, fees, setFees, locations, setLocation
             {aircraft.map((a) => (
               <tr key={a.id}>
                 <td style={{ padding: 4 }}><input value={a.name} onChange={(e) => updateAircraft(a.id, "name", e.target.value)} style={{ ...numCell, fontFamily: T.body }} /></td>
-                <td style={{ padding: 4, width: 120 }}><input type="number" value={a.speed} onChange={(e) => updateAircraft(a.id, "speed", parseFloat(e.target.value) || 1)} style={numCell} /></td>
-                <td style={{ padding: 4, width: 130 }}><input type="number" value={a.rate} onChange={(e) => updateAircraft(a.id, "rate", parseFloat(e.target.value) || 0)} style={numCell} /></td>
+                <td style={{ padding: 4, width: 110 }}><input type="number" value={a.speed} onChange={(e) => updateAircraft(a.id, "speed", parseFloat(e.target.value) || 1)} style={numCell} /></td>
+                <td style={{ padding: 4, width: 120 }}><input type="number" value={a.rate} onChange={(e) => updateAircraft(a.id, "rate", parseFloat(e.target.value) || 0)} style={numCell} /></td>
+                <td style={{ padding: 4, width: 100 }}><input type="number" min="1" value={a.maxPax ?? 4} onChange={(e) => updateAircraft(a.id, "maxPax", parseInt(e.target.value) || 1)} style={numCell} /></td>
                 <td style={{ padding: 4, width: 40 }}>
                   {aircraft.length > 1 && (
                     <button onClick={() => setAircraft(aircraft.filter((x) => x.id !== a.id))} style={{ border: "none", background: "none", color: "#B3263A", fontSize: 16 }} title="Remove">✕</button>
@@ -919,7 +1075,7 @@ function AdminTab({ aircraft, setAircraft, fees, setFees, locations, setLocation
             ))}
           </tbody>
         </table>
-        <button onClick={() => setAircraft([...aircraft, { id: `ac${Date.now()}`, name: "New aircraft", speed: 100, rate: 1000 }])}
+        <button onClick={() => setAircraft([...aircraft, { id: `ac${Date.now()}`, name: "New aircraft", speed: 100, rate: 1000, maxPax: 4 }])}
           style={{ ...btnPrimary, marginTop: 10, background: "transparent", border: `1px solid ${T.steel}`, color: T.steel }}>
           + Add aircraft
         </button>
