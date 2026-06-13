@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { Analytics } from "@vercel/analytics/react";
 
 /* ═══════════════════════ Default data ═══════════════════════ */
 
@@ -1155,6 +1156,7 @@ function AdminTab({ aircraft, setAircraft, fees, setFees, locations, setLocation
           </table>
         </div>
       </section>
+      <Analytics />
     </div>
   );
 }
