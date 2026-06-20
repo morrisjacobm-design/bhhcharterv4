@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 
 const DEFAULT_AIRCRAFT = [
   { id: "r44", name: "Robinson R44", speed: 100, rate: 850, maxPax: 3 },
-  { id: "b206", name: "Bell 206B JetRanger", speed: 110, rate: 1500, maxPax: 4 },
+  { id: "b206", name: "Bell 206B JetRanger", speed: 100, rate: 1500, maxPax: 4 },
   { id: "b206l", name: "Bell 206L LongRanger", speed: 130, rate: 2500, maxPax: 6 },
 ];
 
@@ -28,7 +28,7 @@ const DEFAULT_COMPANY = {
   address: "125 Access Road, Norwood, MA 02062",
   base: "Norwood Memorial Airport (KOWD)",
   terms:
-    "This quotation is valid for 14 days from the date of issue. All flights are subject to aircraft availability, weather, and pilot duty limitations. Final pricing may vary with actual flight time flown, ramp/landing fees assessed by destination facilities, and fuel surcharges. A deposit may be required to confirm booking. Cancellations within 48 hours of departure may be subject to a cancellation fee.",
+    "",
 };
 
 /* [icao, name, lat, lon, defaultLandingFee, region] */
@@ -937,21 +937,7 @@ function QuoteSheet({ quote, company, ac, clientName, tripDate, quoteNo, roundTr
           </div>
         </div>
 
-        {/* Terms */}
-        <SheetH>Terms & Conditions</SheetH>
-        <p style={{ fontSize: 11.5, lineHeight: 1.65, color: T.slate, margin: 0 }}>{company.terms}</p>
-
-        {/* Signature */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 50, marginTop: 44 }}>
-          {["Accepted by (client)", `For ${company.name}`].map((lbl) => (
-            <div key={lbl}>
-              <div style={{ borderBottom: `1px solid ${T.ink}`, height: 34 }} />
-              <div style={{ fontFamily: T.disp, fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: T.slate, marginTop: 6 }}>
-                {lbl} · Date
-              </div>
-            </div>
-          ))}
-        </div>
+       
 
         <div style={{ marginTop: 34, paddingTop: 12, borderTop: `1px solid ${T.line}`, fontSize: 10.5, color: T.slate, display: "flex", justifyContent: "space-between" }}>
           <span>{company.name} · {company.address}</span>
